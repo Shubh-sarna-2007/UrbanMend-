@@ -1,0 +1,1445 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>UrbanMend — Civic Operations & Intelligence Platform</title>
+    
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Leaflet CSS & JS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+    
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        sage: {
+                            700: '#323c39',
+                            800: '#2A3330', 
+                            900: '#3B4743',
+                            950: '#232A28'
+                        },
+                        appBg: '#F3F0E9',
+                        cardBg: '#FFFFFF',
+                        beigeBorder: '#E2DED5',
+                        textPrimary: '#2B3230',
+                        textMuted: '#6B7280'
+                    },
+                    fontFamily: {
+                        sans: ['"Plus Jakarta Sans"', 'sans-serif']
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        body {
+            background-color: #F3F0E9;
+            color: #2B3230;
+            font-family: 'Plus Jakarta Sans', sans-serif;
+        }
+
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 5px;
+            height: 5px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 4px;
+        }
+
+        .sidebar-item {
+            display: flex;
+            align-items: center;
+            padding: 0.6rem 0.85rem;
+            font-size: 0.8125rem;
+            font-weight: 500;
+            color: #C0C7C4;
+            border-radius: 0.5rem;
+            transition: all 0.15s ease-in-out;
+            cursor: pointer;
+            margin-bottom: 0.15rem;
+        }
+
+        .sidebar-item:hover {
+            background-color: rgba(255, 255, 255, 0.06);
+            color: #FFFFFF;
+        }
+
+        .sidebar-item.active {
+            background-color: #4A5853;
+            color: #FFFFFF;
+            font-weight: 600;
+        }
+
+        .pill-badge {
+            padding: 0.15rem 0.6rem;
+            border-radius: 9999px;
+            font-size: 0.7rem;
+            font-weight: 600;
+            display: inline-block;
+        }
+
+        .badge-medium {
+            background-color: #FEF3C7;
+            color: #B45309;
+        }
+        
+        .badge-critical {
+            background-color: #FEE2E2;
+            color: #B91C1C;
+        }
+
+        .badge-submitted {
+            background-color: #F3F4F6;
+            color: #4B5563;
+        }
+
+        .badge-assigned {
+            background-color: #E0E7FF;
+            color: #3730A3;
+        }
+
+        .badge-resolved {
+            background-color: #D1FAE5;
+            color: #065F46;
+        }
+
+        .badge-under-review {
+            background-color: #FFEDD5;
+            color: #C2410C;
+        }
+
+        /* Explicit height rules for Leaflet map renders */
+        #cityMap {
+            height: 520px !important;
+            width: 100% !important;
+            border-radius: 0.75rem;
+            z-index: 10;
+        }
+
+        #submitPickerMap {
+            height: 200px !important;
+            width: 100% !important;
+            border-radius: 0.75rem;
+            z-index: 10;
+        }
+
+        .custom-div-icon, .grid-pin-icon {
+            background: transparent !important;
+            border: none !important;
+        }
+    </style>
+</head>
+<body class="h-screen flex overflow-hidden bg-appBg text-textPrimary">
+
+    <!-- LEFT NAVIGATION SIDEBAR -->
+    <aside class="w-64 bg-sage-900 text-white flex flex-col flex-shrink-0 border-r border-sage-800 select-none">
+        
+        <!-- Brand Header -->
+        <div class="p-5 border-b border-sage-800/60">
+            <div class="flex items-center space-x-3">
+                <div class="w-10 h-10 rounded-xl bg-white text-sage-900 flex items-center justify-center shadow">
+                    <i class="fa-solid fa-square-activity text-xl text-sage-900"></i>
+                </div>
+                <div>
+                    <h1 class="font-bold text-lg leading-tight tracking-wide">UrbanMend</h1>
+                    <p class="text-[9px] font-semibold text-gray-300 tracking-wider uppercase mt-0.5">SPOT THE PROBLEM · MEND THE CITY</p>
+                </div>
+            </div>
+
+            <!-- Workspace Switcher Dropdown -->
+            <div class="mt-5">
+                <div class="bg-sage-950/70 border border-white/10 rounded-xl px-3 py-2 flex items-center justify-between cursor-pointer hover:bg-sage-950 transition" onclick="toggleRoleDropdown()">
+                    <div class="flex items-center space-x-2 truncate">
+                        <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
+                        <span class="text-xs font-semibold text-gray-100 truncate" id="workspaceTitleText">Jaipur Civic Operations</span>
+                    </div>
+                    <i class="fa-solid fa-chevron-down text-[10px] text-gray-400"></i>
+                </div>
+            </div>
+        </div>
+
+        <!-- Operations Desk Menu Items -->
+        <div class="flex-1 overflow-y-auto custom-scrollbar p-3 space-y-6">
+            <div id="sidebarOpsGroup">
+                <div class="text-[10px] font-bold uppercase tracking-wider text-gray-400 px-3 mb-2" id="sidebarSectionTitle">OPERATIONS DESK</div>
+                <nav class="space-y-0.5" id="sidebarNavContainer">
+                    
+                    <!-- Officer Navigation Links -->
+                    <div onclick="switchView('overview')" id="nav-overview" class="sidebar-item officer-nav active">
+                        <i class="fa-solid fa-chart-pie w-6 text-sm"></i>
+                        <span class="flex-1">Overview</span>
+                    </div>
+
+                    <div onclick="switchView('complaints')" id="nav-complaints" class="sidebar-item officer-nav">
+                        <i class="fa-solid fa-list-check w-6 text-sm"></i>
+                        <span class="flex-1">Complaints</span>
+                        <span class="bg-white/15 text-white text-[10px] font-bold px-2 py-0.5 rounded-md" id="sideBadgeCount">7</span>
+                    </div>
+
+                    <div onclick="switchView('repeat-intelligence')" id="nav-repeat-intelligence" class="sidebar-item officer-nav">
+                        <i class="fa-solid fa-diagram-project w-6 text-sm"></i>
+                        <span class="flex-1">Repeat intelligence</span>
+                    </div>
+
+                    <div onclick="switchView('analytics')" id="nav-analytics" class="sidebar-item officer-nav">
+                        <i class="fa-solid fa-chart-simple w-6 text-sm"></i>
+                        <span class="flex-1">Analytics</span>
+                    </div>
+
+                    <div onclick="switchView('early-warning')" id="nav-early-warning" class="sidebar-item officer-nav">
+                        <i class="fa-solid fa-triangle-exclamation w-6 text-sm"></i>
+                        <span class="flex-1">Early warning</span>
+                    </div>
+
+                    <!-- Shared / Citizen Nav Links -->
+                    <div onclick="switchView('citizen-portal')" id="nav-citizen-portal" class="sidebar-item citizen-nav text-amber-300 font-semibold bg-white/5 border border-amber-400/20">
+                        <i class="fa-solid fa-user-gear w-6 text-sm text-amber-400"></i>
+                        <span class="flex-1" id="navCitizenPortalLabel">Citizen Portal</span>
+                        <span class="bg-amber-400 text-sage-950 text-[9px] font-extrabold px-1.5 py-0.5 rounded">PUBLIC</span>
+                    </div>
+
+                    <div onclick="switchView('issue-map')" id="nav-issue-map" class="sidebar-item shared-nav">
+                        <i class="fa-solid fa-location-dot w-6 text-sm"></i>
+                        <span class="flex-1">Live Map Grid</span>
+                    </div>
+
+                </nav>
+            </div>
+
+            <!-- Workspace Info Box -->
+            <div class="bg-sage-950/50 border border-white/10 rounded-xl p-3 text-xs">
+                <div class="flex items-center space-x-2 font-semibold text-gray-200">
+                    <i class="fa-solid fa-shield-halved text-gray-400"></i>
+                    <span id="roleLabelText">Role: Municipal Officer</span>
+                </div>
+                <p class="text-[10px] text-gray-400 mt-1" id="roleSubtext">Live Map & AI Intelligence active</p>
+            </div>
+        </div>
+
+        <!-- User Profile Switcher -->
+        <div class="p-3 border-t border-sage-800/80 bg-sage-950/30 relative">
+            <div onclick="toggleRoleModal()" class="flex items-center justify-between p-2 rounded-xl hover:bg-sage-800/50 cursor-pointer transition border border-white/5 hover:border-amber-400/40">
+                <div class="flex items-center space-x-2.5">
+                    <div id="userAvatarPill" class="w-8 h-8 rounded-full bg-stone-300 text-sage-900 font-extrabold text-xs flex items-center justify-center">
+                        MO
+                    </div>
+                    <div class="text-left">
+                        <div class="text-xs font-bold text-gray-100" id="userNamePill">Municipal officer</div>
+                        <div class="text-[10px] text-amber-300 font-semibold flex items-center space-x-1">
+                            <i class="fa-solid fa-arrows-rotate text-[9px]"></i>
+                            <span>Click to switch role</span>
+                        </div>
+                    </div>
+                </div>
+                <i class="fa-solid fa-chevron-up text-xs text-amber-400"></i>
+            </div>
+
+            <!-- Role Dropdown Menu -->
+            <div id="roleSelectorDropdown" class="hidden absolute bottom-16 left-3 right-3 bg-sage-950 border border-amber-400/30 rounded-xl p-2 shadow-2xl z-50 text-xs space-y-1">
+                <div class="text-[10px] font-bold uppercase tracking-wider text-stone-400 px-2.5 py-1">Select Active Portal Role</div>
+                <button onclick="setRole('officer')" class="w-full text-left p-2 rounded-lg hover:bg-sage-800/80 flex items-center space-x-2.5 text-stone-200 hover:text-white transition">
+                    <div class="w-6 h-6 rounded-md bg-emerald-500/20 text-emerald-400 flex items-center justify-center font-bold text-xs">MO</div>
+                    <div>
+                        <div class="font-bold text-xs">Municipal Officer (Desk)</div>
+                        <div class="text-[10px] text-stone-400">Full ops, assignments & analytics</div>
+                    </div>
+                </button>
+                <button onclick="setRole('citizen')" class="w-full text-left p-2 rounded-lg hover:bg-sage-800/80 flex items-center space-x-2.5 text-stone-200 hover:text-white transition">
+                    <div class="w-6 h-6 rounded-md bg-amber-500/20 text-amber-400 flex items-center justify-center font-bold text-xs">CZ</div>
+                    <div>
+                        <div class="font-bold text-xs">Citizen / Public User</div>
+                        <div class="text-[10px] text-stone-400">Submit issues, track status & live map</div>
+                    </div>
+                </button>
+            </div>
+        </div>
+
+    </aside>
+
+    <!-- MAIN CONTENT WRAPPER -->
+    <div class="flex-1 flex flex-col min-w-0 overflow-hidden bg-appBg">
+        
+        <!-- Header Controls -->
+        <header class="h-14 bg-appBg px-6 flex items-center justify-between flex-shrink-0 border-b border-stone-300/40">
+            <div class="flex items-center space-x-2 text-xs font-medium text-stone-500">
+                <span id="topRegionText">Jaipur operations</span>
+                <span>/</span>
+                <span class="text-stone-900 font-semibold" id="topBreadcrumbCurrent">Overview</span>
+            </div>
+
+            <div class="flex items-center space-x-3">
+                <div class="flex items-center bg-stone-200/80 p-0.5 rounded-xl border border-stone-300 text-xs font-semibold">
+                    <button onclick="setRole('officer')" id="headerRoleOfficerBtn" class="px-3 py-1 rounded-lg transition bg-sage-900 text-white shadow-sm">
+                        <i class="fa-solid fa-user-shield text-[10px] mr-1"></i>
+                        <span>Municipal Officer</span>
+                    </button>
+                    <button onclick="setRole('citizen')" id="headerRoleCitizenBtn" class="px-3 py-1 rounded-lg transition text-stone-600 hover:text-stone-900">
+                        <i class="fa-solid fa-users text-[10px] mr-1"></i>
+                        <span>Citizen View</span>
+                    </button>
+                </div>
+
+                <button onclick="toggleLanguage()" id="langToggleBtn" class="text-xs font-bold bg-white border border-stone-300 text-stone-700 px-2.5 py-1 rounded-lg hover:bg-stone-50 transition flex items-center space-x-1">
+                    <i class="fa-solid fa-language text-sm text-sage-900"></i>
+                    <span id="langText">EN</span>
+                </button>
+
+                <button onclick="openSubmitModal()" class="bg-sage-900 hover:bg-sage-800 text-white font-semibold text-xs px-3.5 py-2 rounded-lg transition flex items-center space-x-1.5 shadow-sm">
+                    <i class="fa-solid fa-plus"></i>
+                    <span id="topSubmitBtnText">Submit complaint</span>
+                </button>
+            </div>
+        </header>
+
+        <!-- Dynamic Main Workspace Container -->
+        <main class="flex-1 overflow-y-auto p-6 space-y-6 custom-scrollbar" id="mainWorkspaceContainer">
+            
+            <!-- VIEW 1: OVERVIEW -->
+            <div id="view-overview" class="space-y-6">
+                <div class="flex items-end justify-between">
+                    <div>
+                        <div class="text-[10px] font-bold text-stone-500 uppercase tracking-wider mb-1">URBANMEND / CITY OPERATIONS</div>
+                        <h1 class="text-2xl font-bold text-stone-900">Overview</h1>
+                        <p class="text-xs text-stone-500 mt-1">A clear picture of what needs attention across Jaipur.</p>
+                    </div>
+                    <div class="flex items-center space-x-2">
+                        <button onclick="refreshOverviewData()" class="bg-white border border-stone-300 hover:bg-stone-50 text-stone-700 text-xs font-semibold px-3 py-1.5 rounded-lg shadow-sm transition flex items-center space-x-1.5">
+                            <i class="fa-solid fa-rotate text-[11px]"></i>
+                            <span>Refresh</span>
+                        </button>
+                        <button onclick="switchView('complaints')" class="bg-white border border-stone-300 hover:bg-stone-50 text-stone-700 text-xs font-semibold px-3 py-1.5 rounded-lg shadow-sm transition flex items-center space-x-1">
+                            <span>All reports</span>
+                            <i class="fa-solid fa-arrow-up-right-from-square text-[10px]"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- KPI Cards -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                    <div class="bg-cardBg p-5 rounded-2xl border border-stone-200/80 shadow-sm">
+                        <div class="flex items-center justify-between">
+                            <span class="text-xs font-semibold text-stone-500">Total reports</span>
+                            <div class="w-8 h-8 rounded-lg bg-stone-100 flex items-center justify-center text-stone-600"><i class="fa-regular fa-clipboard"></i></div>
+                        </div>
+                        <div class="mt-4"><div class="text-3xl font-bold text-stone-900" id="overviewTotalCount">7</div><div class="text-[11px] text-stone-500 mt-1">Active municipal database</div></div>
+                    </div>
+
+                    <div class="bg-cardBg p-5 rounded-2xl border border-stone-200/80 shadow-sm">
+                        <div class="flex items-center justify-between">
+                            <span class="text-xs font-semibold text-stone-500">Needs assignment</span>
+                            <div class="w-8 h-8 rounded-lg bg-amber-50 flex items-center justify-center text-amber-700"><i class="fa-solid fa-user-clock"></i></div>
+                        </div>
+                        <div class="mt-4"><div class="text-3xl font-bold text-stone-900" id="overviewUnassignedCount">2</div><div class="text-[11px] text-stone-500 mt-1">Unassigned queue</div></div>
+                    </div>
+
+                    <div class="bg-cardBg p-5 rounded-2xl border border-stone-200/80 shadow-sm">
+                        <div class="flex items-center justify-between">
+                            <span class="text-xs font-semibold text-stone-500">High priority</span>
+                            <div class="w-8 h-8 rounded-lg bg-red-50 flex items-center justify-center text-red-700"><i class="fa-solid fa-triangle-exclamation"></i></div>
+                        </div>
+                        <div class="mt-4"><div class="text-3xl font-bold text-stone-900" id="overviewHighCount">2</div><div class="text-[11px] text-stone-500 mt-1">Critical & High severity</div></div>
+                    </div>
+
+                    <div class="bg-cardBg p-5 rounded-2xl border border-stone-200/80 shadow-sm">
+                        <div class="flex items-center justify-between">
+                            <span class="text-xs font-semibold text-stone-500">Resolved</span>
+                            <div class="w-8 h-8 rounded-lg bg-emerald-50 flex items-center justify-center text-emerald-700"><i class="fa-regular fa-circle-check"></i></div>
+                        </div>
+                        <div class="mt-4"><div class="text-3xl font-bold text-stone-900" id="overviewResolvedCount">1</div><div class="text-[11px] text-stone-500 mt-1">Action verified</div></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- VIEW 2: COMPLAINTS CONSOLE -->
+            <div id="view-complaints" class="hidden space-y-6">
+                <div class="flex items-end justify-between">
+                    <div>
+                        <div class="text-[10px] font-bold text-stone-500 uppercase tracking-wider mb-1">URBANMEND / CITY OPERATIONS</div>
+                        <h1 class="text-2xl font-bold text-stone-900">Complaints</h1>
+                        <p class="text-xs text-stone-500 mt-1">Search, filter and inspect citizen-submitted city reports.</p>
+                    </div>
+                    <div class="flex items-center space-x-2">
+                        <button onclick="exportCSV()" class="bg-white border border-stone-300 hover:bg-stone-50 text-stone-700 text-xs font-semibold px-3.5 py-2 rounded-lg shadow-sm transition flex items-center space-x-1.5">
+                            <i class="fa-solid fa-download text-[11px]"></i>
+                            <span>Export CSV</span>
+                        </button>
+                        <button onclick="openSubmitModal()" class="bg-sage-900 hover:bg-sage-800 text-white font-semibold text-xs px-3.5 py-2 rounded-lg transition flex items-center space-x-1.5 shadow-sm">
+                            <i class="fa-solid fa-plus"></i>
+                            <span>New complaint</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Toolbar -->
+                <div class="bg-cardBg p-4 rounded-2xl border border-stone-200/80 shadow-sm space-y-3">
+                    <div class="relative">
+                        <i class="fa-solid fa-magnifying-glass absolute left-3.5 top-3 text-stone-400 text-xs"></i>
+                        <input type="text" id="complaintSearchInput" oninput="renderComplaintsTable()" placeholder="Search ID, issue, location or department..." class="w-full text-xs bg-stone-50 border border-stone-200 rounded-xl pl-9 pr-4 py-2.5 text-stone-900 focus:outline-none focus:ring-2 focus:ring-sage-900">
+                    </div>
+
+                    <div class="flex flex-wrap items-center gap-2">
+                        <span class="text-xs text-stone-500 font-semibold flex items-center space-x-1 mr-1">
+                            <i class="fa-solid fa-sliders text-[10px]"></i>
+                            <span>Filters</span>
+                        </span>
+
+                        <select id="filterCategorySelect" onchange="renderComplaintsTable()" class="text-xs bg-stone-50 border border-stone-200 rounded-lg px-3 py-1.5 text-stone-700 focus:outline-none">
+                            <option value="ALL">All categories</option>
+                            <option value="Roads and potholes">Roads and potholes</option>
+                            <option value="Streetlights and electrical infrastructure">Streetlights & electrical</option>
+                            <option value="Garbage and sanitation">Garbage and sanitation</option>
+                            <option value="Water supply and leakage">Water supply and leakage</option>
+                            <option value="Drainage and sewage">Drainage and sewage</option>
+                        </select>
+
+                        <select id="filterPrioritySelect" onchange="renderComplaintsTable()" class="text-xs bg-stone-50 border border-stone-200 rounded-lg px-3 py-1.5 text-stone-700 focus:outline-none">
+                            <option value="ALL">All priorities</option>
+                            <option value="Critical">Critical</option>
+                            <option value="High">High</option>
+                            <option value="Medium">Medium</option>
+                            <option value="Low">Low</option>
+                        </select>
+
+                        <select id="filterStatusSelect" onchange="renderComplaintsTable()" class="text-xs bg-stone-50 border border-stone-200 rounded-lg px-3 py-1.5 text-stone-700 focus:outline-none">
+                            <option value="ALL">All statuses</option>
+                            <option value="Submitted">Submitted</option>
+                            <option value="Assigned">Assigned</option>
+                            <option value="Under Review">Under Review</option>
+                            <option value="In Progress">In Progress</option>
+                            <option value="Resolved">Resolved</option>
+                        </select>
+
+                        <button onclick="resetComplaintFilters()" class="text-xs text-stone-600 border border-stone-200 rounded-lg px-3 py-1.5 hover:bg-stone-100 transition flex items-center space-x-1">
+                            <i class="fa-solid fa-xmark text-[10px]"></i>
+                            <span>Clear</span>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="flex items-center justify-between text-xs text-stone-500 px-1">
+                    <div><span id="filteredResultsCount" class="font-bold text-stone-800">7 results</span> of <span id="totalResultsCount">7 records</span></div>
+                    <div>Open a report to review rule factors and workflow.</div>
+                </div>
+
+                <div class="bg-cardBg rounded-2xl border border-stone-200/80 shadow-sm overflow-hidden">
+                    <div class="overflow-x-auto custom-scrollbar">
+                        <table class="w-full text-left text-xs">
+                            <thead>
+                                <tr class="bg-stone-50 border-b border-stone-200 text-stone-500 font-bold uppercase text-[10px] tracking-wider">
+                                    <th class="py-3 px-4">REPORT</th>
+                                    <th class="py-3 px-4">CATEGORY</th>
+                                    <th class="py-3 px-4">PRIORITY</th>
+                                    <th class="py-3 px-4">ROUTED TO</th>
+                                    <th class="py-3 px-4">STATUS</th>
+                                    <th class="py-3 px-4">CONFIDENCE</th>
+                                    <th class="py-3 px-4 text-right">ACTION</th>
+                                </tr>
+                            </thead>
+                            <tbody id="complaintsTableBody" class="divide-y divide-stone-100 font-medium">
+                                <!-- Dynamic JS Rows -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- VIEW 3: LIVE ISSUE MAP VIEW -->
+            <div id="view-issue-map" class="hidden space-y-6">
+                <div class="flex items-end justify-between">
+                    <div>
+                        <div class="text-[10px] font-bold text-stone-500 uppercase tracking-wider mb-1">URBANMEND / GIS GRID</div>
+                        <h1 class="text-2xl font-bold text-stone-900">Live City Pulse GIS Map Grid</h1>
+                        <p class="text-xs text-stone-500 mt-1">Real-time OpenStreetMap interactive grid. Click anywhere on the map to pin and report an issue directly.</p>
+                    </div>
+
+                    <div class="flex items-center space-x-2">
+                        <select id="mapFilterCategory" onchange="updateLiveMapMarkers()" class="text-xs bg-white border border-stone-300 rounded-xl px-3 py-1.5 font-bold text-stone-700 shadow-sm focus:outline-none">
+                            <option value="ALL">All Map Categories</option>
+                            <option value="Roads and potholes">Roads and potholes</option>
+                            <option value="Streetlights and electrical infrastructure">Streetlights & Electrical</option>
+                            <option value="Garbage and sanitation">Garbage & Sanitation</option>
+                            <option value="Water supply and leakage">Water Supply & Leakage</option>
+                            <option value="Drainage and sewage">Drainage & Sewage</option>
+                        </select>
+                        <button onclick="recenterMap()" class="bg-sage-900 text-white hover:bg-sage-800 text-xs font-bold px-3 py-1.5 rounded-xl shadow-sm transition flex items-center space-x-1">
+                            <i class="fa-solid fa-crosshairs"></i>
+                            <span>Center Jaipur</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Live Map Grid HUD Bar -->
+                <div class="bg-sage-900 text-white p-3 rounded-xl border border-sage-800 flex flex-wrap items-center justify-between text-xs font-mono shadow-sm">
+                    <div class="flex items-center space-x-3">
+                        <span class="flex items-center space-x-1.5">
+                            <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                            <span class="font-bold">LIVE MAP GRID ACTIVE</span>
+                        </span>
+                        <span class="text-stone-400">|</span>
+                        <span id="mapCursorCoords" class="text-amber-300">Cursor Lat: --, Lng: --</span>
+                    </div>
+                    <div class="text-[11px] text-stone-300 font-sans">
+                        💡 Powered by Esri World Street Map. Click anywhere on the grid to drop a location pin & report a new issue.
+                    </div>
+                </div>
+
+                <div class="bg-cardBg p-4 rounded-2xl border border-stone-200/80 shadow-sm space-y-4 relative">
+                    <div id="cityMap"></div>
+                    
+                    <div class="absolute bottom-7 right-7 bg-white/95 backdrop-blur-md p-3 rounded-xl border border-stone-300 shadow-lg text-[11px] space-y-1.5 z-[1000] font-medium">
+                        <div class="font-bold text-stone-800 border-b border-stone-200 pb-1 mb-1">Priority Pins</div>
+                        <div class="flex items-center space-x-2"><span class="w-3 h-3 rounded-full bg-red-600 inline-block shadow-sm"></span><span>Critical / High Priority</span></div>
+                        <div class="flex items-center space-x-2"><span class="w-3 h-3 rounded-full bg-amber-500 inline-block shadow-sm"></span><span>Medium Priority</span></div>
+                        <div class="flex items-center space-x-2"><span class="w-3 h-3 rounded-full bg-emerald-600 inline-block shadow-sm"></span><span>Resolved / Low Priority</span></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- VIEW 4: CITIZEN PORTAL -->
+            <div id="view-citizen-portal" class="hidden space-y-6">
+                <div class="bg-gradient-to-r from-sage-900 to-sage-800 text-white rounded-3xl p-6 sm:p-8 shadow-xl space-y-4">
+                    <div class="flex items-center justify-between">
+                        <span class="bg-amber-400 text-sage-950 font-extrabold text-[10px] px-3 py-1 rounded-full uppercase tracking-wider">
+                            Citizen Portal · नागरिक सेवा
+                        </span>
+                        <div class="text-xs text-stone-300 flex items-center space-x-2">
+                            <i class="fa-solid fa-location-dot text-amber-400"></i>
+                            <span>Jaipur Municipal Grid</span>
+                        </div>
+                    </div>
+
+                    <h1 class="text-2xl sm:text-3xl font-extrabold" id="citizenPortalTitle">Spot the Problem. Mend the City.</h1>
+                    <p class="text-xs sm:text-sm text-stone-200 max-w-2xl leading-relaxed" id="citizenPortalSubtitle">
+                        Direct civic reporting platform powered by AI categorization and live municipal tracking. Report potholes, water leaks, broken streetlights, or waste management issues instantly.
+                    </p>
+
+                    <div class="pt-2 flex flex-wrap gap-3">
+                        <button onclick="openSubmitModal()" class="bg-amber-400 hover:bg-amber-300 text-sage-950 font-extrabold text-xs px-5 py-3 rounded-xl transition flex items-center space-x-2 shadow-md">
+                            <i class="fa-solid fa-camera"></i>
+                            <span id="citizenReportNowBtn">Report an Issue Now</span>
+                        </button>
+                        <button onclick="switchView('issue-map')" class="bg-white/10 hover:bg-white/20 text-white font-bold text-xs px-4 py-3 rounded-xl transition border border-white/20 flex items-center space-x-2">
+                            <i class="fa-solid fa-map-location-dot text-amber-300"></i>
+                            <span>View Public Live Map</span>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                    <div class="lg:col-span-4 bg-cardBg p-5 rounded-2xl border border-stone-200/80 shadow-sm space-y-4">
+                        <h3 class="font-bold text-sm text-stone-900 flex items-center space-x-2">
+                            <i class="fa-solid fa-magnifying-glass text-sage-900"></i>
+                            <span>Track Complaint Status</span>
+                        </h3>
+                        <p class="text-xs text-stone-500">Enter your Reference ID (e.g. CP-DEMO-001) to view live action updates.</p>
+                        
+                        <div class="space-y-2">
+                            <input type="text" id="citizenTrackInput" placeholder="Enter Report ID..." class="w-full text-xs bg-stone-50 border border-stone-300 rounded-xl px-3.5 py-2.5 text-stone-900 font-mono font-bold focus:outline-none focus:ring-2 focus:ring-sage-900">
+                            <button onclick="trackCitizenComplaint()" class="w-full bg-sage-900 hover:bg-sage-800 text-white text-xs font-bold py-2.5 rounded-xl transition">
+                                Lookup Status
+                            </button>
+                        </div>
+
+                        <div id="citizenTrackResult" class="hidden p-3.5 bg-stone-50 border border-stone-200 rounded-xl space-y-2 text-xs"></div>
+                    </div>
+
+                    <div class="lg:col-span-8 bg-cardBg p-5 rounded-2xl border border-stone-200/80 shadow-sm space-y-4">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <h3 class="font-bold text-sm text-stone-900">Community Reports Near You</h3>
+                                <p class="text-xs text-stone-500">Publicly verified issues recently submitted across Jaipur.</p>
+                            </div>
+                            <span class="text-xs font-bold text-sage-900 bg-stone-100 px-2.5 py-1 rounded-lg" id="publicReportsCount">7 Public Reports</span>
+                        </div>
+
+                        <div class="space-y-3 max-h-[420px] overflow-y-auto custom-scrollbar pr-1" id="citizenPublicFeed">
+                            <!-- Dynamic Public Feed -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- VIEW 5: ANALYTICS -->
+            <div id="view-analytics" class="hidden space-y-6">
+                <div class="flex items-end justify-between">
+                    <div>
+                        <div class="text-[10px] font-bold text-stone-500 uppercase tracking-wider mb-1">URBANMEND / CITY OPERATIONS</div>
+                        <h1 class="text-2xl font-bold text-stone-900">Analytics</h1>
+                        <p class="text-xs text-stone-500 mt-1">Operational performance metrics and report distribution.</p>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                    <div class="lg:col-span-7 bg-cardBg p-5 rounded-2xl border border-stone-200/80 shadow-sm flex flex-col">
+                        <h3 class="font-bold text-sm text-stone-900">Reports by department</h3>
+                        <p class="text-[11px] text-stone-500 mb-4">Simulated routing workload</p>
+                        <div class="w-full h-72">
+                            <canvas id="analyticsDeptChart"></canvas>
+                        </div>
+                    </div>
+
+                    <div class="lg:col-span-5 bg-cardBg p-5 rounded-2xl border border-stone-200/80 shadow-sm flex flex-col">
+                        <h3 class="font-bold text-sm text-stone-900">Status distribution</h3>
+                        <p class="text-[11px] text-stone-500 mb-4">Current workflow state across reports</p>
+                        <div class="w-full h-72 flex items-center justify-center">
+                            <canvas id="analyticsStatusChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- VIEW 6: EARLY WARNING & REPEAT INTELLIGENCE -->
+            <div id="view-early-warning" class="hidden space-y-6">
+                <div class="flex items-end justify-between">
+                    <div>
+                        <div class="text-[10px] font-bold text-stone-500 uppercase tracking-wider mb-1">URBANMEND / CITY OPERATIONS</div>
+                        <h1 class="text-2xl font-bold text-stone-900">Early Warning Engine</h1>
+                        <p class="text-xs text-stone-500 mt-1">Spatial-temporal EWMA anomaly detection for civic complaint surges.</p>
+                    </div>
+                </div>
+
+                <div id="earlyWarningAlertBox" class="bg-sage-900 text-white rounded-2xl p-6 shadow-md space-y-3">
+                    <span class="bg-amber-400 text-sage-900 text-[10px] font-bold px-2.5 py-1 rounded-full uppercase tracking-wider">Active Statistical Anomaly</span>
+                    <h2 class="text-xl font-bold">Water Main Burst Hazard — Sector 4</h2>
+                    <p class="text-xs text-stone-300">Observation window: 24h. +345% surge observed over baseline models.</p>
+                    <button onclick="acknowledgeAlert()" class="mt-2 bg-amber-400 hover:bg-amber-300 text-sage-900 font-bold px-4 py-2 rounded-xl text-xs transition">
+                        Acknowledge & Dispatch Emergency Field Crew
+                    </button>
+                </div>
+            </div>
+
+            <div id="view-repeat-intelligence" class="hidden space-y-6">
+                <div class="flex items-end justify-between">
+                    <div>
+                        <div class="text-[10px] font-bold text-stone-500 uppercase tracking-wider mb-1">URBANMEND / CITY OPERATIONS</div>
+                        <h1 class="text-2xl font-bold text-stone-900">Repeat Intelligence</h1>
+                        <p class="text-xs text-stone-500 mt-1">Clustering logic identifying identical underlying infrastructure failures.</p>
+                    </div>
+                </div>
+
+                <div class="bg-cardBg p-6 rounded-2xl border border-stone-200/80 shadow-sm space-y-4">
+                    <h3 class="font-bold text-sm text-stone-900">Duplicate Clusters Identified (Ward 12 & MUJ Perimeter)</h3>
+                    <div class="bg-stone-50 p-4 rounded-xl border border-stone-200 text-xs space-y-2">
+                        <div class="flex justify-between font-bold text-stone-900">
+                            <span>Cluster #84 — Deep Potholes near MUJ Main Gate</span>
+                            <span class="text-amber-700 font-bold">3 Reports Merged</span>
+                        </div>
+                        <p class="text-stone-600">Reports CP-DEMO-001 and CP-DEMO-002 refer to the same 2-meter road crater.</p>
+                    </div>
+                </div>
+            </div>
+
+        </main>
+    </div>
+
+    <!-- MODAL 1: SUBMIT COMPLAINT WITH MAP PIN -->
+    <div id="submitComplaintModal" class="fixed inset-0 bg-sage-950/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-cardBg rounded-2xl max-w-lg w-full p-6 shadow-2xl border border-stone-200 space-y-4 max-h-[90vh] overflow-y-auto custom-scrollbar">
+            
+            <div class="flex items-center justify-between pb-3 border-b border-stone-200">
+                <div>
+                    <h2 class="text-lg font-bold text-stone-900" id="modalSubmitHeader">Submit New Complaint</h2>
+                    <p class="text-xs text-stone-500">Log an infrastructure issue into the Jaipur civic grid.</p>
+                </div>
+                <button onclick="closeSubmitModal()" class="text-stone-400 hover:text-stone-800 text-lg p-1"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+
+            <form id="newComplaintForm" onsubmit="handleNewComplaintSubmit(event)" class="space-y-4 text-xs">
+                <div>
+                    <label class="block font-bold text-stone-700 mb-1">Issue Category</label>
+                    <select id="modalFormCategory" required class="w-full bg-stone-50 border border-stone-200 rounded-xl p-2.5 text-stone-900 font-bold focus:outline-none">
+                        <option value="Roads and potholes">Roads and potholes</option>
+                        <option value="Streetlights and electrical infrastructure">Streetlights and electrical infrastructure</option>
+                        <option value="Garbage and sanitation">Garbage and sanitation</option>
+                        <option value="Water supply and leakage">Water supply and leakage</option>
+                        <option value="Drainage and sewage">Drainage and sewage</option>
+                    </select>
+                </div>
+
+                <div>
+                    <label class="block font-bold text-stone-700 mb-1">Description</label>
+                    <textarea id="modalFormDesc" rows="3" required placeholder="Describe the location and problem in detail..." class="w-full bg-stone-50 border border-stone-200 rounded-xl p-2.5 text-stone-900 focus:outline-none"></textarea>
+                </div>
+
+                <div>
+                    <div class="flex items-center justify-between mb-1">
+                        <label class="block font-bold text-stone-700">Pin Point Location on Live Map</label>
+                        <button type="button" onclick="getCurrentLocation()" class="text-[11px] font-bold text-sage-900 hover:underline flex items-center space-x-1">
+                            <i class="fa-solid fa-location-crosshairs"></i>
+                            <span>Use My GPS</span>
+                        </button>
+                    </div>
+                    
+                    <div id="submitPickerMap"></div>
+
+                    <input type="text" id="modalFormLocation" required placeholder="e.g. MUJ Main Gate, Jaipur" class="w-full bg-stone-50 border border-stone-200 rounded-xl p-2.5 text-stone-900 focus:outline-none mt-2">
+                    <input type="hidden" id="modalFormLat" value="26.885">
+                    <input type="hidden" id="modalFormLng" value="75.792">
+                </div>
+
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block font-bold text-stone-700 mb-1">Priority Queue</label>
+                        <select id="modalFormPriority" class="w-full bg-stone-50 border border-stone-200 rounded-xl p-2 text-stone-900">
+                            <option value="Medium">Medium</option>
+                            <option value="High">High</option>
+                            <option value="Critical">Critical</option>
+                            <option value="Low">Low</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block font-bold text-stone-700 mb-1">Assign Department</label>
+                        <select id="modalFormDept" class="w-full bg-stone-50 border border-stone-200 rounded-xl p-2 text-stone-900">
+                            <option value="Roads and Public Works">Roads and Public Works</option>
+                            <option value="Electrical Department">Electrical Department</option>
+                            <option value="Sanitation Department">Sanitation Department</option>
+                            <option value="Water Supply">Water Supply</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="pt-3 flex justify-end space-x-2 border-t border-stone-200">
+                    <button type="button" onclick="closeSubmitModal()" class="px-4 py-2 border border-stone-300 rounded-xl font-bold text-stone-600 hover:bg-stone-100">Cancel</button>
+                    <button type="submit" class="px-4 py-2 bg-sage-900 hover:bg-sage-800 text-white font-bold rounded-xl shadow">Submit to Grid</button>
+                </div>
+            </form>
+
+        </div>
+    </div>
+
+    <!-- MODAL 2: INSPECT DETAIL DRAWER -->
+    <div id="inspectDrawerModal" class="fixed inset-0 bg-sage-950/60 backdrop-blur-sm z-50 hidden flex items-center justify-end">
+        <div class="bg-cardBg w-full max-w-md h-full p-6 shadow-2xl border-l border-stone-200 overflow-y-auto space-y-5 custom-scrollbar">
+            
+            <div class="flex items-center justify-between pb-3 border-b border-stone-200">
+                <div>
+                    <span id="inspectReportId" class="text-xs font-mono font-bold text-stone-500">CP-261009-A05135</span>
+                    <h2 id="inspectReportCategory" class="text-base font-bold text-stone-900 mt-0.5">Roads and potholes</h2>
+                </div>
+                <button onclick="closeInspectDrawer()" class="text-stone-400 hover:text-stone-800 text-lg p-1"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+
+            <div class="space-y-4 text-xs">
+                <div class="bg-stone-50 p-3.5 rounded-xl border border-stone-200 space-y-2">
+                    <div class="flex justify-between">
+                        <span class="text-stone-500">Location:</span>
+                        <strong id="inspectLocation" class="text-stone-900">Manipal University Jaipur</strong>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-stone-500">Priority Score:</span>
+                        <span id="inspectPriorityBadge" class="pill-badge badge-medium">Medium (35/100)</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-stone-500">Assigned Officer:</span>
+                        <strong id="inspectOfficer" class="text-stone-800">Unassigned</strong>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-stone-500">Confidence:</span>
+                        <strong id="inspectConfidence" class="text-emerald-700">82% (Synthetic)</strong>
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block font-bold text-stone-800 uppercase text-[10px] tracking-wider mb-1">Issue Description</label>
+                    <p id="inspectDescription" class="text-stone-700 bg-stone-50 p-3 rounded-xl border border-stone-200 leading-relaxed">
+                        Road damaged with potholes causing slow traffic.
+                    </p>
+                </div>
+
+                <div class="pt-2 space-y-2">
+                    <label class="block font-bold text-stone-800 uppercase text-[10px] tracking-wider">Update Status</label>
+                    <select id="inspectStatusSelect" class="w-full bg-stone-50 border border-stone-200 rounded-xl p-2.5 text-stone-900 font-bold">
+                        <option value="Submitted">Submitted</option>
+                        <option value="Assigned">Assigned</option>
+                        <option value="Under Review">Under Review</option>
+                        <option value="In Progress">In Progress</option>
+                        <option value="Resolved">Resolved</option>
+                    </select>
+                </div>
+
+                <button onclick="saveInspectChanges()" class="w-full bg-sage-900 hover:bg-sage-800 text-white font-bold py-2.5 rounded-xl shadow">
+                    Save Workflow Changes
+                </button>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- JAVASCRIPT APPLICATION ENGINE -->
+    <script>
+        // Seed dataset
+        const SEED_COMPLAINTS = [
+            { id: "CP-261009-A05135", category: "Roads and potholes", priority: "Medium", score: 35, desc: "road damaged with potholes near university road", location: "Manipal University Jaipur", lat: 26.843, lng: 75.565, routedTo: "Roads and Public Works", officer: "Unassigned", status: "Submitted", confidence: "42%" },
+            { id: "CP-DEMO-001", category: "Roads and potholes", priority: "Medium", score: 59, desc: "Large pothole near the main gate; cyclists are swerving into oncoming traffic", location: "MUJ Main Gate", lat: 26.845, lng: 75.568, routedTo: "Roads and Public Works", officer: "A. Sharma", status: "Submitted", confidence: "82%" },
+            { id: "CP-DEMO-015", category: "Streetlights and electrical infrastructure", priority: "Medium", score: 50, desc: "Streetlight is broken and the lane is dark at night near hostel block", location: "Hostel Road, Dahmi Kalan", lat: 26.841, lng: 75.560, routedTo: "Electrical Department", officer: "S. Khan", status: "Assigned", confidence: "82%" },
+            { id: "CP-DEMO-029", category: "Garbage and sanitation", priority: "Medium", score: 41, desc: "Garbage bins are overflowing beside the food court.", location: "Food Court Circle", lat: 26.885, lng: 75.792, routedTo: "Sanitation Department", officer: "A. Sharma", status: "Resolved", confidence: "82%" },
+            { id: "CP-DEMO-002", category: "Roads and potholes", priority: "Medium", score: 44, desc: "A deep pothole near the main gate is damaging two-wheelers.", location: "Ajmer Road Crossing", lat: 26.872, lng: 75.740, routedTo: "Roads and Public Works", officer: "R. Mehta", status: "Under Review", confidence: "82%" },
+            { id: "CP-DEMO-008", category: "Water supply and leakage", priority: "High", score: 78, desc: "Clean water pipeline leaking on street causing waterlogging.", location: "Sector 4 Market, Vaishali Nagar", lat: 26.912, lng: 75.742, routedTo: "Water Supply", officer: "V. Gupta", status: "In Progress", confidence: "91%" },
+            { id: "CP-DEMO-012", category: "Drainage and sewage", priority: "Critical", score: 88, desc: "Drainage overflow across main road causing health hazard.", location: "Civil Lines Ward 3", lat: 26.908, lng: 75.789, routedTo: "Drainage Department", officer: "Unassigned", status: "Submitted", confidence: "89%" }
+        ];
+
+        let complaintsData = JSON.parse(localStorage.getItem('urbanmend_complaints')) || [...SEED_COMPLAINTS];
+        let currentRole = 'officer';
+        let currentLang = 'EN';
+        let currentActiveInspectId = null;
+
+        // Leaflet & Chart references
+        let cityMapInstance = null;
+        let mapMarkersLayerGroup = null;
+        let gridTempMarker = null;
+        let pickerMapInstance = null;
+        let pickerMarker = null;
+        let analyticsDeptChart = null;
+        let analyticsStatusChart = null;
+
+        function saveToLocalStorage() {
+            localStorage.setItem('urbanmend_complaints', JSON.stringify(complaintsData));
+        }
+
+        function getStatusBadgeClass(status) {
+            switch (status) {
+                case 'Submitted': return 'badge-submitted';
+                case 'Assigned': return 'badge-assigned';
+                case 'Under Review': return 'badge-under-review';
+                case 'In Progress': return 'badge-assigned';
+                case 'Resolved': return 'badge-resolved';
+                default: return 'badge-submitted';
+            }
+        }
+
+        function getPriorityBadgeClass(priority) {
+            switch (priority) {
+                case 'Critical': return 'badge-critical';
+                case 'High': return 'badge-critical';
+                case 'Medium': return 'badge-medium';
+                case 'Low': return 'badge-submitted';
+                default: return 'badge-medium';
+            }
+        }
+
+        function renderComplaintsTable() {
+            const tableBody = document.getElementById('complaintsTableBody');
+            if (!tableBody) return;
+
+            const searchVal = (document.getElementById('complaintSearchInput')?.value || '').toLowerCase();
+            const categoryVal = document.getElementById('filterCategorySelect')?.value || 'ALL';
+            const priorityVal = document.getElementById('filterPrioritySelect')?.value || 'ALL';
+            const statusVal = document.getElementById('filterStatusSelect')?.value || 'ALL';
+
+            const filtered = complaintsData.filter(item => {
+                const matchSearch = item.id.toLowerCase().includes(searchVal) || 
+                                    item.category.toLowerCase().includes(searchVal) || 
+                                    item.desc.toLowerCase().includes(searchVal) || 
+                                    item.location.toLowerCase().includes(searchVal) || 
+                                    item.routedTo.toLowerCase().includes(searchVal);
+
+                const matchCat = categoryVal === 'ALL' || item.category === categoryVal;
+                const matchPrio = priorityVal === 'ALL' || item.priority === priorityVal;
+                const matchStat = statusVal === 'ALL' || item.status === statusVal;
+
+                return matchSearch && matchCat && matchPrio && matchStat;
+            });
+
+            // Update statistics indicators
+            const filteredCountEl = document.getElementById('filteredResultsCount');
+            const totalCountEl = document.getElementById('totalResultsCount');
+            if (filteredCountEl) filteredCountEl.innerText = `${filtered.length} results`;
+            if (totalCountEl) totalCountEl.innerText = `${complaintsData.length} records`;
+
+            if (filtered.length === 0) {
+                tableBody.innerHTML = `
+                    <tr>
+                        <td colspan="7" class="py-8 text-center text-stone-400 text-xs">
+                            <i class="fa-regular fa-folder-open text-xl mb-2 block"></i>
+                            No matching complaints found.
+                        </td>
+                    </tr>
+                `;
+                return;
+            }
+
+            tableBody.innerHTML = filtered.map(item => `
+                <tr class="hover:bg-stone-50/80 transition">
+                    <td class="py-3 px-4">
+                        <div class="font-bold text-stone-900 flex items-center space-x-1.5">
+                            <span>${item.id}</span>
+                            <span class="w-2 h-2 rounded-full ${item.priority === 'Critical' ? 'bg-red-500' : 'bg-amber-400'}"></span>
+                        </div>
+                        <div class="text-[11px] text-stone-500 truncate max-w-[180px]">${item.desc}</div>
+                        <div class="text-[10px] text-stone-400 flex items-center space-x-1 mt-0.5">
+                            <i class="fa-solid fa-location-dot"></i>
+                            <span>${item.location}</span>
+                        </div>
+                    </td>
+                    <td class="py-3 px-4 text-stone-700">${item.category}</td>
+                    <td class="py-3 px-4">
+                        <span class="pill-badge ${getPriorityBadgeClass(item.priority)}">
+                            ${item.priority}
+                        </span>
+                        <div class="text-[10px] text-stone-400 mt-0.5">Score ${item.score}/100</div>
+                    </td>
+                    <td class="py-3 px-4">
+                        <div class="text-stone-800 font-semibold">${item.routedTo}</div>
+                        <div class="text-[10px] text-stone-400">${item.officer}</div>
+                    </td>
+                    <td class="py-3 px-4">
+                        <span class="pill-badge ${getStatusBadgeClass(item.status)}">
+                            ${item.status}
+                        </span>
+                    </td>
+                    <td class="py-3 px-4 font-bold text-emerald-700">${item.confidence}</td>
+                    <td class="py-3 px-4 text-right">
+                        <button onclick="openInspectDrawer('${item.id}')" class="p-1.5 text-stone-500 hover:text-sage-900 transition hover:bg-stone-100 rounded-lg">
+                            <i class="fa-regular fa-eye text-sm"></i>
+                        </button>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        function renderCitizenPublicFeed() {
+            const feedEl = document.getElementById('citizenPublicFeed');
+            const countEl = document.getElementById('publicReportsCount');
+            if (!feedEl) return;
+
+            if (countEl) countEl.innerText = `${complaintsData.length} Public Reports`;
+
+            feedEl.innerHTML = complaintsData.map(item => `
+                <div class="p-3.5 bg-stone-50 rounded-xl border border-stone-200/80 flex items-start justify-between space-x-3 hover:border-stone-300 transition">
+                    <div class="space-y-1">
+                        <div class="flex items-center space-x-2">
+                            <span class="font-mono font-bold text-xs text-stone-900">${item.id}</span>
+                            <span class="pill-badge ${getStatusBadgeClass(item.status)}">${item.status}</span>
+                        </div>
+                        <p class="text-xs text-stone-700 font-medium">${item.desc}</p>
+                        <div class="text-[11px] text-stone-400 flex items-center space-x-1">
+                            <i class="fa-solid fa-location-dot"></i>
+                            <span>${item.location}</span>
+                        </div>
+                    </div>
+                    <button onclick="openInspectDrawer('${item.id}')" class="text-xs font-bold text-sage-900 border border-stone-300 bg-white px-2.5 py-1 rounded-lg hover:bg-stone-100 transition flex-shrink-0">
+                        View
+                    </button>
+                </div>
+            `).join('');
+        }
+
+        function trackCitizenComplaint() {
+            const inputEl = document.getElementById('citizenTrackInput');
+            const resultEl = document.getElementById('citizenTrackResult');
+            if (!inputEl || !resultEl) return;
+
+            const query = inputEl.value.trim().toLowerCase();
+            if (!query) {
+                resultEl.classList.remove('hidden');
+                resultEl.innerHTML = `<span class="text-red-600 font-bold">Please enter a valid Report Reference ID.</span>`;
+                return;
+            }
+
+            const match = complaintsData.find(c => c.id.toLowerCase() === query);
+            resultEl.classList.remove('hidden');
+
+            if (match) {
+                resultEl.innerHTML = `
+                    <div class="font-bold text-stone-900 flex justify-between">
+                        <span>${match.id}</span>
+                        <span class="pill-badge ${getStatusBadgeClass(match.status)}">${match.status}</span>
+                    </div>
+                    <div class="text-stone-600">Category: <strong>${match.category}</strong></div>
+                    <div class="text-stone-600">Location: <strong>${match.location}</strong></div>
+                    <div class="text-stone-600">Department: <strong>${match.routedTo}</strong></div>
+                `;
+            } else {
+                resultEl.innerHTML = `<span class="text-stone-500 font-bold">No complaint record found matching ID "${inputEl.value}".</span>`;
+            }
+        }
+
+        function openInspectDrawer(id) {
+            currentActiveInspectId = id;
+            const item = complaintsData.find(c => c.id === id);
+            if (!item) return;
+
+            document.getElementById('inspectReportId').innerText = item.id;
+            document.getElementById('inspectReportCategory').innerText = item.category;
+            document.getElementById('inspectLocation').innerText = item.location;
+            
+            const badge = document.getElementById('inspectPriorityBadge');
+            if (badge) {
+                badge.innerText = `${item.priority} (${item.score}/100)`;
+                badge.className = `pill-badge ${getPriorityBadgeClass(item.priority)}`;
+            }
+
+            document.getElementById('inspectOfficer').innerText = item.officer;
+            document.getElementById('inspectConfidence').innerText = item.confidence;
+            document.getElementById('inspectDescription').innerText = item.desc;
+            document.getElementById('inspectStatusSelect').value = item.status;
+
+            document.getElementById('inspectDrawerModal').classList.remove('hidden');
+        }
+
+        function closeInspectDrawer() {
+            document.getElementById('inspectDrawerModal').classList.add('hidden');
+            currentActiveInspectId = null;
+        }
+
+        function saveInspectChanges() {
+            if (!currentActiveInspectId) return;
+            const item = complaintsData.find(c => c.id === currentActiveInspectId);
+            if (item) {
+                const newStatus = document.getElementById('inspectStatusSelect').value;
+                item.status = newStatus;
+                saveToLocalStorage();
+                renderComplaintsTable();
+                renderCitizenPublicFeed();
+                updateLiveMapMarkers();
+                refreshOverviewData();
+            }
+            closeInspectDrawer();
+        }
+
+        function openSubmitModal() {
+            document.getElementById('submitComplaintModal').classList.remove('hidden');
+            setTimeout(() => {
+                initPickerMap();
+            }, 150);
+        }
+
+        function closeSubmitModal() {
+            document.getElementById('submitComplaintModal').classList.add('hidden');
+        }
+
+        function initPickerMap() {
+            if (pickerMapInstance) {
+                pickerMapInstance.invalidateSize();
+                return;
+            }
+
+            pickerMapInstance = L.map('submitPickerMap').setView([26.885, 75.792], 13);
+            
+            // Reliable Esri World Street Map Tiles (Free & Keyless for Web Prototypes)
+            const pickerTileLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}', {
+                attribution: 'Tiles &copy; Esri &mdash; Source: Esri, DeLorme, NAVTEQ, USGS, Intermap, iPC, NRCAN, Esri Japan, METI, TomTom',
+                maxZoom: 19
+            });
+
+            pickerTileLayer.on('tileerror', function(error) {
+                console.warn('Picker map tile failed to load gracefully:', error);
+            });
+
+            pickerTileLayer.addTo(pickerMapInstance);
+
+            pickerMarker = L.marker([26.885, 75.792], { draggable: true }).addTo(pickerMapInstance);
+
+            pickerMarker.on('dragend', function(e) {
+                const latlng = e.target.getLatLng();
+                document.getElementById('modalFormLat').value = latlng.lat.toFixed(5);
+                document.getElementById('modalFormLng').value = latlng.lng.toFixed(5);
+            });
+            
+            setTimeout(() => {
+                if (pickerMapInstance) pickerMapInstance.invalidateSize();
+            }, 250);
+        }
+
+        function getCurrentLocation() {
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(pos => {
+                    const lat = pos.coords.latitude;
+                    const lng = pos.coords.longitude;
+                    document.getElementById('modalFormLat').value = lat.toFixed(5);
+                    document.getElementById('modalFormLng').value = lng.toFixed(5);
+                    document.getElementById('modalFormLocation').value = `GPS Pin (${lat.toFixed(4)}, ${lng.toFixed(4)})`;
+                    
+                    if (pickerMapInstance && pickerMarker) {
+                        pickerMapInstance.setView([lat, lng], 15);
+                        pickerMarker.setLatLng([lat, lng]);
+                        pickerMapInstance.invalidateSize();
+                    }
+                }, () => {
+                    alert('Geolocation request timed out or permission was denied.');
+                });
+            }
+        }
+
+        function handleNewComplaintSubmit(e) {
+            e.preventDefault();
+            const category = document.getElementById('modalFormCategory').value;
+            const desc = document.getElementById('modalFormDesc').value;
+            const location = document.getElementById('modalFormLocation').value;
+            const priority = document.getElementById('modalFormPriority').value;
+            const dept = document.getElementById('modalFormDept').value;
+            const lat = parseFloat(document.getElementById('modalFormLat').value) || 26.885;
+            const lng = parseFloat(document.getElementById('modalFormLng').value) || 75.792;
+
+            const newId = `CP-REG-${Math.floor(1000 + Math.random() * 9000)}`;
+            const newReport = {
+                id: newId,
+                category: category,
+                priority: priority,
+                score: Math.floor(40 + Math.random() * 50),
+                desc: desc,
+                location: location,
+                lat: lat,
+                lng: lng,
+                routedTo: dept,
+                officer: "Unassigned",
+                status: "Submitted",
+                confidence: "85%"
+            };
+
+            complaintsData.unshift(newReport);
+            saveToLocalStorage();
+
+            renderComplaintsTable();
+            renderCitizenPublicFeed();
+            updateLiveMapMarkers();
+            refreshOverviewData();
+
+            closeSubmitModal();
+            document.getElementById('newComplaintForm').reset();
+        }
+
+        function toggleRoleDropdown() {
+            const dropdown = document.getElementById('roleSelectorDropdown');
+            if (dropdown) dropdown.classList.toggle('hidden');
+        }
+
+        function toggleRoleModal() {
+            toggleRoleDropdown();
+        }
+
+        function setRole(role) {
+            currentRole = role;
+            const dropdown = document.getElementById('roleSelectorDropdown');
+            if (dropdown) dropdown.classList.add('hidden');
+
+            const officerBtn = document.getElementById('headerRoleOfficerBtn');
+            const citizenBtn = document.getElementById('headerRoleCitizenBtn');
+            const userNamePill = document.getElementById('userNamePill');
+            const userAvatarPill = document.getElementById('userAvatarPill');
+            const roleLabelText = document.getElementById('roleLabelText');
+            const roleSubtext = document.getElementById('roleSubtext');
+            const sidebarTitle = document.getElementById('sidebarSectionTitle');
+
+            const officerNavItems = document.querySelectorAll('.officer-nav');
+
+            if (role === 'citizen') {
+                if (officerBtn) officerBtn.className = "px-3 py-1 rounded-lg transition text-stone-600 hover:text-stone-900";
+                if (citizenBtn) citizenBtn.className = "px-3 py-1 rounded-lg transition bg-amber-400 text-sage-950 shadow-sm font-bold";
+                if (userNamePill) userNamePill.innerText = "Citizen / Public User";
+                if (userAvatarPill) {
+                    userAvatarPill.innerText = "CZ";
+                    userAvatarPill.className = "w-8 h-8 rounded-full bg-amber-400 text-sage-950 font-extrabold text-xs flex items-center justify-center";
+                }
+                if (roleLabelText) roleLabelText.innerText = "Role: Citizen (Public)";
+                if (roleSubtext) roleSubtext.innerText = "Report issue & track status";
+                if (sidebarTitle) sidebarTitle.innerText = "CITIZEN SERVICES";
+
+                // Hide Officer-only navigation items
+                officerNavItems.forEach(el => el.classList.add('hidden'));
+
+                switchView('citizen-portal');
+            } else {
+                if (officerBtn) officerBtn.className = "px-3 py-1 rounded-lg transition bg-sage-900 text-white shadow-sm font-bold";
+                if (citizenBtn) citizenBtn.className = "px-3 py-1 rounded-lg transition text-stone-600 hover:text-stone-900";
+                if (userNamePill) userNamePill.innerText = "Municipal officer";
+                if (userAvatarPill) {
+                    userAvatarPill.innerText = "MO";
+                    userAvatarPill.className = "w-8 h-8 rounded-full bg-stone-300 text-sage-900 font-extrabold text-xs flex items-center justify-center";
+                }
+                if (roleLabelText) roleLabelText.innerText = "Role: Municipal Officer";
+                if (roleSubtext) roleSubtext.innerText = "Live Map & AI Intelligence active";
+                if (sidebarTitle) sidebarTitle.innerText = "OPERATIONS DESK";
+
+                // Show Officer navigation items
+                officerNavItems.forEach(el => el.classList.remove('hidden'));
+
+                switchView('overview');
+            }
+        }
+
+        function switchView(viewName) {
+            const views = ['overview', 'complaints', 'issue-map', 'repeat-intelligence', 'analytics', 'early-warning', 'citizen-portal'];
+            views.forEach(v => {
+                const el = document.getElementById(`view-${v}`);
+                const nav = document.getElementById(`nav-${v}`);
+                if (el) el.classList.add('hidden');
+                if (nav) nav.classList.remove('active');
+            });
+
+            const activeView = document.getElementById(`view-${viewName}`);
+            const activeNav = document.getElementById(`nav-${viewName}`);
+            if (activeView) activeView.classList.remove('hidden');
+            if (activeNav) activeNav.classList.add('active');
+
+            const currentBreadcrumb = document.getElementById('topBreadcrumbCurrent');
+            if (currentBreadcrumb) {
+                currentBreadcrumb.innerText = viewName.charAt(0).toUpperCase() + viewName.slice(1).replace('-', ' ');
+            }
+
+            if (viewName === 'issue-map') {
+                setTimeout(() => { 
+                    if (!cityMapInstance) {
+                        initLiveMap(); 
+                    } else {
+                        cityMapInstance.invalidateSize();
+                        updateLiveMapMarkers();
+                    }
+                }, 100);
+
+                setTimeout(() => {
+                    if (cityMapInstance) cityMapInstance.invalidateSize();
+                }, 300);
+            } else if (viewName === 'analytics') {
+                setTimeout(() => { initCharts(); }, 100);
+            }
+        }
+
+        function initLiveMap() {
+            const container = document.getElementById('cityMap');
+            if (!container) return;
+
+            if (cityMapInstance) {
+                cityMapInstance.invalidateSize();
+                return;
+            }
+
+            cityMapInstance = L.map('cityMap').setView([26.885, 75.760], 12);
+
+            // Reliable Esri World Street Map Tiles (Free & Keyless for Web Prototypes)
+            const mainTileLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}', {
+                attribution: 'Tiles &copy; Esri &mdash; Source: Esri, DeLorme, NAVTEQ, USGS, Intermap, iPC, NRCAN, Esri Japan, METI, TomTom',
+                maxZoom: 19
+            });
+
+            mainTileLayer.on('tileerror', function(error) {
+                console.warn('Live map tile failed to load gracefully:', error);
+            });
+
+            mainTileLayer.addTo(cityMapInstance);
+
+            mapMarkersLayerGroup = L.layerGroup().addTo(cityMapInstance);
+
+            cityMapInstance.on('mousemove', function(e) {
+                const coordsEl = document.getElementById('mapCursorCoords');
+                if (coordsEl) {
+                    coordsEl.innerText = `Cursor Lat: ${e.latlng.lat.toFixed(4)}, Lng: ${e.latlng.lng.toFixed(4)}`;
+                }
+            });
+
+            cityMapInstance.on('click', function(e) {
+                const lat = e.latlng.lat.toFixed(5);
+                const lng = e.latlng.lng.toFixed(5);
+
+                if (gridTempMarker) {
+                    cityMapInstance.removeLayer(gridTempMarker);
+                }
+
+                gridTempMarker = L.marker([lat, lng], {
+                    icon: L.divIcon({
+                        className: 'grid-pin-icon',
+                        html: `<div style="background-color: #3B4743; width: 22px; height: 22px; border-radius: 50%; border: 3px solid #fbbf24; box-shadow: 0 4px 8px rgba(0,0,0,0.5);" class="animate-bounce"></div>`,
+                        iconSize: [22, 22],
+                        iconAnchor: [11, 11]
+                    })
+                }).addTo(cityMapInstance);
+
+                gridTempMarker.bindPopup(`
+                    <div style="font-family: sans-serif; font-size: 12px; padding: 4px; text-align: center;">
+                        <div style="font-weight: bold; color: #3B4743; margin-bottom: 2px;">Selected Grid Location</div>
+                        <div style="color: #6b7280; font-size: 11px; font-mono; font-weight: 600;">Lat: ${lat}, Lng: ${lng}</div>
+                        <button onclick="openSubmitModalWithCoords(${lat}, ${lng})" style="margin-top: 8px; background-color: #3B4743; color: white; border: none; padding: 6px 12px; border-radius: 6px; font-weight: bold; font-size: 11px; cursor: pointer;">
+                            + Report Issue Here
+                        </button>
+                    </div>
+                `).openPopup();
+            });
+
+            updateLiveMapMarkers();
+
+            setTimeout(() => {
+                if (cityMapInstance) cityMapInstance.invalidateSize();
+            }, 250);
+        }
+
+        function recenterMap() {
+            if (cityMapInstance) {
+                cityMapInstance.setView([26.885, 75.760], 12);
+                cityMapInstance.invalidateSize();
+            }
+        }
+
+        function openSubmitModalWithCoords(lat, lng) {
+            openSubmitModal();
+            setTimeout(() => {
+                document.getElementById('modalFormLat').value = lat;
+                document.getElementById('modalFormLng').value = lng;
+                document.getElementById('modalFormLocation').value = `Map Grid Pin (${lat}, ${lng})`;
+                if (pickerMapInstance && pickerMarker) {
+                    pickerMapInstance.setView([lat, lng], 15);
+                    pickerMarker.setLatLng([lat, lng]);
+                    pickerMapInstance.invalidateSize();
+                }
+            }, 300);
+        }
+
+        function updateLiveMapMarkers() {
+            if (!cityMapInstance || !mapMarkersLayerGroup) return;
+
+            mapMarkersLayerGroup.clearLayers();
+            const filterCat = document.getElementById('mapFilterCategory') ? document.getElementById('mapFilterCategory').value : 'ALL';
+
+            complaintsData.forEach(item => {
+                if (filterCat !== 'ALL' && item.category !== filterCat) return;
+
+                const lat = item.lat || 26.885;
+                const lng = item.lng || 75.792;
+
+                let pinColor = '#f59e0b';
+                if (item.priority === 'Critical' || item.priority === 'High') pinColor = '#dc2626';
+                if (item.status === 'Resolved') pinColor = '#059669';
+
+                const customMarkerIcon = L.divIcon({
+                    className: 'custom-div-icon',
+                    html: `<div style="background-color: ${pinColor}; width: 18px; height: 18px; border-radius: 50%; border: 3px solid white; box-shadow: 0 2px 6px rgba(0,0,0,0.4);"></div>`,
+                    iconSize: [18, 18],
+                    iconAnchor: [9, 9]
+                });
+
+                const marker = L.marker([lat, lng], { icon: customMarkerIcon });
+                marker.bindPopup(`
+                    <div style="font-family: sans-serif; font-size: 12px; padding: 2px;">
+                        <div style="font-weight: bold; color: #3B4743;">${item.id}</div>
+                        <div style="color: #4b5563; font-size: 11px; margin-top: 2px;"><b>${item.category}</b></div>
+                        <div style="font-size: 11px; margin-top: 2px;">${item.location}</div>
+                        <div style="margin-top: 6px; display: flex; items-center; justify-content: space-between;">
+                            <span style="background: #f3f4f6; padding: 2px 6px; border-radius: 4px; font-weight: bold; font-size: 10px;">${item.status}</span>
+                            <button onclick="openInspectDrawer('${item.id}')" style="background: #3B4743; color: white; border: none; padding: 2px 8px; border-radius: 4px; font-size: 10px; cursor: pointer; font-weight: bold;">Inspect</button>
+                        </div>
+                    </div>
+                `);
+
+                mapMarkersLayerGroup.addLayer(marker);
+            });
+        }
+
+        function refreshOverviewData() {
+            const total = complaintsData.length;
+            const unassigned = complaintsData.filter(c => c.officer === 'Unassigned' || !c.officer).length;
+            const high = complaintsData.filter(c => c.priority === 'High' || c.priority === 'Critical').length;
+            const resolved = complaintsData.filter(c => c.status === 'Resolved').length;
+
+            if (document.getElementById('overviewTotalCount')) document.getElementById('overviewTotalCount').innerText = total;
+            if (document.getElementById('overviewUnassignedCount')) document.getElementById('overviewUnassignedCount').innerText = unassigned;
+            if (document.getElementById('overviewHighCount')) document.getElementById('overviewHighCount').innerText = high;
+            if (document.getElementById('overviewResolvedCount')) document.getElementById('overviewResolvedCount').innerText = resolved;
+            if (document.getElementById('sideBadgeCount')) document.getElementById('sideBadgeCount').innerText = total;
+        }
+
+        function resetComplaintFilters() {
+            if (document.getElementById('complaintSearchInput')) document.getElementById('complaintSearchInput').value = '';
+            if (document.getElementById('filterCategorySelect')) document.getElementById('filterCategorySelect').value = 'ALL';
+            if (document.getElementById('filterPrioritySelect')) document.getElementById('filterPrioritySelect').value = 'ALL';
+            if (document.getElementById('filterStatusSelect')) document.getElementById('filterStatusSelect').value = 'ALL';
+            renderComplaintsTable();
+        }
+
+        function exportCSV() {
+            const headers = ["ID", "Category", "Priority", "Score", "Location", "RoutedTo", "Officer", "Status"];
+            const rows = complaintsData.map(c => [c.id, c.category, c.priority, c.score, c.location, c.routedTo, c.officer, c.status]);
+            const csvContent = "data:text/csv;charset=utf-8," + [headers.join(","), ...rows.map(e => e.join(","))].join("\n");
+            const encodedUri = encodeURI(csvContent);
+            const link = document.createElement("a");
+            link.setAttribute("href", encodedUri);
+            link.setAttribute("download", "UrbanMend_Complaints_Report.csv");
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+
+        function toggleLanguage() {
+            currentLang = currentLang === 'EN' ? 'HI' : 'EN';
+            document.getElementById('langText').innerText = currentLang;
+            
+            const btnText = document.getElementById('topSubmitBtnText');
+            if (btnText) {
+                btnText.innerText = currentLang === 'HI' ? 'शिकायत दर्ज करें' : 'Submit complaint';
+            }
+        }
+
+        function acknowledgeAlert() {
+            const box = document.getElementById('earlyWarningAlertBox');
+            if (box) {
+                box.innerHTML = `
+                    <div class="flex items-center space-x-2 text-emerald-400 font-bold">
+                        <i class="fa-solid fa-circle-check text-lg"></i>
+                        <span>Alert Acknowledged & Emergency Dispatch Issued to Sector 4</span>
+                    </div>
+                `;
+            }
+        }
+
+        function initCharts() {
+            const ctxDept = document.getElementById('analyticsDeptChart')?.getContext('2d');
+            const ctxStatus = document.getElementById('analyticsStatusChart')?.getContext('2d');
+
+            if (ctxDept && !analyticsDeptChart) {
+                analyticsDeptChart = new Chart(ctxDept, {
+                    type: 'bar',
+                    data: {
+                        labels: ['Roads', 'Electrical', 'Sanitation', 'Water', 'Drainage'],
+                        datasets: [{
+                            label: 'Active Workload',
+                            data: [3, 1, 1, 1, 1],
+                            backgroundColor: '#3B4743',
+                            borderRadius: 6
+                        }]
+                    },
+                    options: { responsive: true, maintainAspectRatio: false }
+                });
+            }
+
+            if (ctxStatus && !analyticsStatusChart) {
+                analyticsStatusChart = new Chart(ctxStatus, {
+                    type: 'doughnut',
+                    data: {
+                        labels: ['Submitted', 'Assigned', 'Under Review', 'In Progress', 'Resolved'],
+                        datasets: [{
+                            data: [3, 1, 1, 1, 1],
+                            backgroundColor: ['#9ca3af', '#6366f1', '#f97316', '#3b82f6', '#10b981']
+                        }]
+                    },
+                    options: { responsive: true, maintainAspectRatio: false }
+                });
+            }
+        }
+
+        window.addEventListener('DOMContentLoaded', () => {
+            renderComplaintsTable();
+            renderCitizenPublicFeed();
+            refreshOverviewData();
+        });
+    </script>
+</body>
+</html>
